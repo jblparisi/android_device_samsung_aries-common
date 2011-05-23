@@ -77,6 +77,10 @@ const char *AudioHardware::inputPathNameDefault = "Default";
 const char *AudioHardware::inputPathNameCamcorder = "Camcorder";
 const char *AudioHardware::inputPathNameVoiceRecognition = "Voice Recognition";
 const char *AudioHardware::inputPathNameVoiceCommunication = "Voice Communication";
+#ifdef HAVE_FM_RADIO
+const char *AudioHardware::inputPathNameFMRadio = "FM Radio";
+const char *AudioHardware::inputPathNameFMRadioA2DP = "FM Radio A2DP";
+#endif
 
 AudioHardware::AudioHardware() :
     mInit(false),
@@ -846,6 +850,10 @@ const char *AudioHardware::getOutputRouteFromDevice(uint32_t device)
     case AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET:
     case AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT:
         return "BT";
+#ifdef HAVE_FM_RADIO
+    case AudioSystem::DEVICE_OUT_FM_ALL:
+        return "FM";
+#endif
     default:
         return "OFF";
     }
@@ -879,6 +887,10 @@ const char *AudioHardware::getVoiceRouteFromDevice(uint32_t device)
     case AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET:
     case AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT:
         return "BT";
+#ifdef HAVE_FM_RADIO
+    case AudioSystem::DEVICE_OUT_FM_ALL:
+        return "FM";
+#endif
     default:
         return "OFF";
     }
@@ -897,6 +909,12 @@ const char *AudioHardware::getInputRouteFromDevice(uint32_t device)
         return "Hands Free Mic";
     case AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET:
         return "BT Sco Mic";
+#ifdef HAVE_FM_RADIO
+    case AudioSystem::DEVICE_IN_FM_RX:
+        return "FM Radio";
+    case AudioSystem::DEVICE_IN_FM_RX_A2DP:
+        return "FM Radio A2DP";
+#endif
     default:
         return "MIC OFF";
     }
@@ -960,6 +978,14 @@ status_t AudioHardware::setInputSource_l(audio_source source)
                      case AUDIO_SOURCE_VOICE_RECOGNITION:
                          sourceName = inputPathNameVoiceRecognition;
                          break;
+#ifdef HAVE_FM_RADIO
+                     case AUDIO_SOURCE_FM_RX:
+                         sourceName = inputPathNameFMRadio;
+                         break;
+                     case AUDIO_SOURCE_FM_RX_A2DP:
+                         sourceName = inputPathNameFMRadioA2DP;
+                         break;
+#endif
                      case AUDIO_SOURCE_VOICE_UPLINK:   // intended fall-through
                      case AUDIO_SOURCE_VOICE_DOWNLINK: // intended fall-through
                      case AUDIO_SOURCE_VOICE_CALL:     // intended fall-through
