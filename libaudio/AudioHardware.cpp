@@ -16,7 +16,7 @@
 
 #include <math.h>
 
-//#define LOG_NDEBUG 0
+#define LOG_NDEBUG 0
 
 #define LOG_TAG "AudioHardware"
 
@@ -93,6 +93,9 @@ AudioHardware::AudioHardware() :
     mInputSource(AUDIO_SOURCE_DEFAULT),
     mBluetoothNrec(true),
     mTTYMode(TTY_MODE_OFF),
+#ifdef HAVE_FM_RADIO
+    mFMRadio(false),
+#endif
     mSecRilLibHandle(NULL),
     mRilClient(0),
     mActivatedCP(false),
@@ -475,6 +478,12 @@ status_t AudioHardware::setParameters(const String8& keyValuePairs)
     const char TTY_MODE_VALUE_VCO[] = "tty_vco";
     const char TTY_MODE_VALUE_HCO[] = "tty_hco";
     const char TTY_MODE_VALUE_FULL[] = "tty_full";
+#ifdef HAVE_FM_RADIO
+    const char FM_RADIO_KEY_ON[] = "fm_on";
+    const char FM_RADIO_KEY_OFF[] = "fm_off";
+    const char FM_RADIO_VALUE_ON[] = "2055";
+    const char FM_RADIO_VALUE_OFF[] = "7";
+#endif
 
     key = String8(BT_NREC_KEY);
     if (param.get(key, value) == NO_ERROR) {
@@ -512,6 +521,24 @@ status_t AudioHardware::setParameters(const String8& keyValuePairs)
         }
         param.remove(String8(TTY_MODE_KEY));
      }
+
+#ifdef HAVE_FM_RADIO
+    key = String8(FM_RADIO_KEY_ON);
+    if (param.get(key, value) == NO_ERROR) {
+        if (value == FM_RADIO_VALUE_ON) {
+            mFMRadio = true;
+        } else {
+            mFMRadio = false;
+            LOGV("AudioHardware::setParameters() Turning noise reduction and echo cancellation off for FM Radio");
+        }
+
+        if (mFMRadio != false) {
+            LOGV("AudioHardware::setParameters() FM Radio on");
+            setFMRadioPath_l(mOutput->device());
+        }
+        param.remove(String8(FM_RADIO_KEY_ON));
+    }
+#endif
 
     return NO_ERROR;
 }
@@ -749,61 +776,60 @@ status_t AudioHardware::setIncallPath_l(uint32_t device)
 #ifdef HAVE_FM_RADIO
 status_t AudioHardware::setFMRadioPath_l(uint32_t device)
 {
-    LOGV("setFMRadioPath_l: device %x", device);
+    LOGV("setFMRadioPath_l() device %x", device);
 
-//  if (mMode == AudioSystem::MODE_IN_CALL) {
-        LOGD("### fmradio mode route (%d)", device);
-        AudioPath path;
-        switch(device){
-            case AudioSystem::DEVICE_OUT_EARPIECE:
-                LOGD("### fmradio mode earpiece route");
-                path = SOUND_AUDIO_PATH_HANDSET;
-                break;
+    AudioPath path;
+    switch(device){
+        case AudioSystem::DEVICE_OUT_EARPIECE:
+            LOGD("### fmradio mode earpiece route");
+            path = SOUND_AUDIO_PATH_HANDSET;
+            break;
 
-            case AudioSystem::DEVICE_OUT_SPEAKER:
-                LOGD("### fmradio mode speaker route");
-                path = SOUND_AUDIO_PATH_SPEAKER;
-                break;
+        case AudioSystem::DEVICE_OUT_SPEAKER:
+            LOGD("### fmradio mode speaker route");
+            path = SOUND_AUDIO_PATH_SPEAKER;
+            break;
 
-            case AudioSystem::DEVICE_OUT_BLUETOOTH_SCO:
-            case AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET:
-            case AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT:
-                LOGD("### fmradio mode bluetooth route %s NR", mBluetoothNrec ? "" : "NO");
-                if (mBluetoothNrec) {
-                    path = SOUND_AUDIO_PATH_BLUETOOTH;
-                } else {
-                    path = SOUND_AUDIO_PATH_BLUETOOTH_NO_NR;
-                }
-                break;
-					
-            case AudioSystem::DEVICE_OUT_WIRED_HEADPHONE :
-                LOGD("### fmradio mode headphone route");
-                path = SOUND_AUDIO_PATH_HEADPHONE;
-                break;
-            case AudioSystem::DEVICE_OUT_WIRED_HEADSET :
-                LOGD("### fmradio mode headset route");
-                path = SOUND_AUDIO_PATH_HEADSET;
-                break;
-            default:
-                LOGW("### fmradio mode Error!! route = [%d]", device);
-                path = SOUND_AUDIO_PATH_HANDSET;
-                break;
-        }
-
-        if (mMixer != NULL) {
-            TRACE_DRIVER_IN(DRV_MIXER_GET)
-            struct mixer_ctl *ctl= mixer_get_control(mMixer, "FM Radio Path", 0);
-            TRACE_DRIVER_OUT
-            LOGE_IF(ctl == NULL, "setFMRadioPath_l() could not get mixer ctl");
-            if (ctl != NULL) {
-                LOGV("setFMRadioPath_l() FM Radio Path, (%x)", device);
-                TRACE_DRIVER_IN(DRV_MIXER_SEL)
-				/* FIXME codeworkx */
-                mixer_ctl_select(ctl, getVoiceRouteFromDevice(device));
-                TRACE_DRIVER_OUT
+        case AudioSystem::DEVICE_OUT_BLUETOOTH_SCO:
+        case AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET:
+        case AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT:
+            LOGD("### fmradio mode bluetooth route %s NR", mBluetoothNrec ? "" : "NO");
+            if (mBluetoothNrec) {
+                path = SOUND_AUDIO_PATH_BLUETOOTH;
+            } else {
+                path = SOUND_AUDIO_PATH_BLUETOOTH_NO_NR;
             }
+            break;
+					
+        case AudioSystem::DEVICE_OUT_WIRED_HEADPHONE :
+            LOGD("### fmradio mode headphone route");
+            path = SOUND_AUDIO_PATH_HEADPHONE;
+            break;
+        case AudioSystem::DEVICE_OUT_WIRED_HEADSET :
+            LOGD("### fmradio mode headset route");
+            path = SOUND_AUDIO_PATH_HEADSET;
+            break;
+        default:
+            LOGW("### fmradio mode Error!! route = [%d]", device);
+            path = SOUND_AUDIO_PATH_HANDSET;
+            break;
+    }
+
+    if (mMixer != NULL) {
+        TRACE_DRIVER_IN(DRV_MIXER_GET)
+        struct mixer_ctl *ctl= mixer_get_control(mMixer, "FM Radio Path", 0);
+        TRACE_DRIVER_OUT
+        LOGE_IF(ctl == NULL, "setFMRadioPath_l() could not get mixer ctl");
+        if (ctl != NULL) {
+            LOGV("setFMRadioPath_l() FM Radio Path, (%x)", device);
+            TRACE_DRIVER_IN(DRV_MIXER_SEL)
+            mixer_ctl_select(ctl, getInputRouteFromDevice(device));
+            TRACE_DRIVER_OUT
+        } else {
+            LOGE("setFMRadioPath_l() mMixer == NULL");
         }
-//  }
+    }
+
     return NO_ERROR;
 }
 #endif
@@ -1318,14 +1344,47 @@ bool AudioHardware::AudioStreamOutALSA::checkStandby()
 status_t AudioHardware::AudioStreamOutALSA::setParameters(const String8& keyValuePairs)
 {
     AudioParameter param = AudioParameter(keyValuePairs);
+#ifdef HAVE_FM_RADIO
+    String8 value;
+    String8 key;
+    const char FM_RADIO_KEY_ON[] = "fm_on";
+    const char FM_RADIO_KEY_OFF[] = "fm_off";
+    const char FM_RADIO_VALUE_ON[] = "2055";
+    const char FM_RADIO_VALUE_OFF[] = "7";
+#endif
+    bool FMRadio = false;
+
+
     status_t status = NO_ERROR;
     int device;
     LOGD("AudioStreamOutALSA::setParameters() %s", keyValuePairs.string());
 
     if (mHardware == NULL) return NO_INIT;
-	
+ 
     {
         AutoMutex lock(mLock);
+
+#ifdef HAVE_FM_RADIO
+        key = String8(FM_RADIO_KEY_ON);
+        if (param.get(key, value) == NO_ERROR) {
+            if (value == FM_RADIO_VALUE_ON) {
+                LOGV("AudioStreamOutALSA::setParameters() setFMRadioPath_l()");
+		mHardware->setFMRadioPath_l(4); // FIXME: get real device id
+                FMRadio = true;
+            }
+            param.remove(String8(FM_RADIO_KEY_ON));
+        }
+
+        key = String8(FM_RADIO_KEY_OFF);
+        if (param.get(key, value) == NO_ERROR) {
+            if (value == FM_RADIO_VALUE_OFF) {
+                LOGV("AudioStreamOutALSA::setParameters() doStandby_l()");
+                doStandby_l();
+                FMRadio = false;
+            }
+            param.remove(String8(FM_RADIO_KEY_OFF));
+        }
+#endif
 
         if (param.getInt(String8(AudioParameter::keyRouting), device) == NO_ERROR)
         {
@@ -1334,21 +1393,15 @@ status_t AudioHardware::AudioStreamOutALSA::setParameters(const String8& keyValu
 
                 if (mDevices != (uint32_t)device) {
                     mDevices = (uint32_t)device;
-					/* FIXME codeworkx */
-                    if (mHardware->mode() != AudioSystem::MODE_IN_CALL || keyValuePairs.string() != 'fm_on=2055') {
+
+                    if (mHardware->mode() != AudioSystem::MODE_IN_CALL && FMRadio != true) {
                         doStandby_l();
                     }
-                }
+                } 
                 if (mHardware->mode() == AudioSystem::MODE_IN_CALL) {
                     mHardware->setIncallPath_l(device);
                 }
-#ifdef HAVE_FM_RADIO
-				/* FIXME codeworkx */
-				if (keyValuePairs.string() == 'fm_on=2055') {
-					mHardware->setFMRadioPath_l(device);
-				}
-#endif
-            }
+            } 
             param.remove(String8(AudioParameter::keyRouting));
         }
     }
@@ -1356,6 +1409,7 @@ status_t AudioHardware::AudioStreamOutALSA::setParameters(const String8& keyValu
     if (param.size()) {
         status = BAD_VALUE;
     }
+
     return status;
 }
 

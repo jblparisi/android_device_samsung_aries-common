@@ -166,7 +166,9 @@ private:
     audio_source    mInputSource;
     bool            mBluetoothNrec;
     int             mTTYMode;
-
+#ifdef HAVE_FM_RADIO
+    bool            mFMRadio;
+#endif
     void*           mSecRilLibHandle;
     HRilClient      mRilClient;
     bool            mActivatedCP;
