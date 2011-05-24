@@ -751,7 +751,7 @@ status_t AudioHardware::setFMRadioPath_l(uint32_t device)
 {
     LOGV("setFMRadioPath_l: device %x", device);
 
-    if (mMode == AudioSystem::MODE_IN_CALL) {
+//  if (mMode == AudioSystem::MODE_IN_CALL) {
         LOGD("### fmradio mode route (%d)", device);
         AudioPath path;
         switch(device){
@@ -803,7 +803,7 @@ status_t AudioHardware::setFMRadioPath_l(uint32_t device)
                 TRACE_DRIVER_OUT
             }
         }
-    }
+//  }
     return NO_ERROR;
 }
 #endif
