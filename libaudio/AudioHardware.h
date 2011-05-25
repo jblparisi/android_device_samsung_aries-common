@@ -79,10 +79,6 @@ public:
     static const char *inputPathNameCamcorder;
     static const char *inputPathNameVoiceRecognition;
     static const char *inputPathNameVoiceCommunication;
-#ifdef HAVE_FM_RADIO
-    static const char *inputPathNameFMRadio;
-    static const char *inputPathNameFMRadioA2DP;
-#endif
 
     AudioHardware();
     virtual ~AudioHardware();
@@ -166,9 +162,7 @@ private:
     audio_source    mInputSource;
     bool            mBluetoothNrec;
     int             mTTYMode;
-#ifdef HAVE_FM_RADIO
-    bool            mFMRadio;
-#endif
+
     void*           mSecRilLibHandle;
     HRilClient      mRilClient;
     bool            mActivatedCP;
