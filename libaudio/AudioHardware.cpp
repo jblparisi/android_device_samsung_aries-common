@@ -533,8 +533,24 @@ status_t AudioHardware::setParameters(const String8& keyValuePairs)
         } 
         if (value == FM_RADIO_VALUE_OFF) {
             LOGV("AudioHardware::setParameters() Turning FM Radio OFF");
+
+            if (mMixer != NULL) {
+                TRACE_DRIVER_IN(DRV_MIXER_GET)
+                struct mixer_ctl *ctl= mixer_get_control(mMixer, "FM Radio Path", 0);
+                TRACE_DRIVER_OUT
+            
+                if (ctl != NULL) {
+                    TRACE_DRIVER_IN(DRV_MIXER_SEL)
+                    mixer_ctl_select(ctl, "FMR_MIX_OFF");
+                    TRACE_DRIVER_OUT
+
+                    TRACE_DRIVER_IN(DRV_MIXER_SEL)
+                    mixer_ctl_select(ctl, "FMR_OFF");
+                    TRACE_DRIVER_OUT
+                }
             closeMixer_l();
             closePcmOut_l();
+            }
         } 
         param.remove(String8(FM_RADIO_KEY_OFF));  
     }
